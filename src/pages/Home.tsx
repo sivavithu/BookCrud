@@ -22,7 +22,7 @@ interface Book {
   author: string;
 }
 
-const API_BASE = 'http://localhost:8080'; // Vite frontend with proxy to gateway
+ // Vite frontend with proxy to gateway
 
 const Home = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -32,16 +32,21 @@ const Home = () => {
   const [formData, setFormData] = useState({ name: '', author: '' });
   const { user, logout, getAccessToken, refreshAccessToken } = useAuth();
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null); // State for Excel file
-  const fileInputRef = useRef<HTMLInputElement>(null); // Ref to reset file input
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   const apiCall = async (url: string, options: RequestInit = {}) => {
     const token = getAccessToken();
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...options.headers, // Allow overriding headers if needed
+    };
+
     let response = await fetch(url, {
       ...options,
-      headers: {
-        'Authorization': `Bearer ${token}`, // Only Authorization header
-      },
+      headers,
     });
 
     if (response.status === 401) {
@@ -51,7 +56,9 @@ const Home = () => {
         response = await fetch(url, {
           ...options,
           headers: {
-            'Authorization': `Bearer ${newToken}`,
+            Authorization: `Bearer ${newToken}`,
+            ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+            ...options.headers,
           },
         });
       } else {
@@ -66,7 +73,7 @@ const Home = () => {
   const fetchBooks = async () => {
     setLoading(true);
     try {
-      const response = await apiCall('/api/books');
+      const response = await apiCall(`/api/books`);
       if (response?.ok) {
         const data = await response.json();
         setBooks(data);
@@ -153,8 +160,7 @@ const Home = () => {
     formData.append('file', file);
 
     try {
-      const token = getAccessToken();
-      const response = await apiCall('/api/books/upload-excel', {
+      const response = await apiCall(`/api/books/upload-excel`, {
         method: 'POST',
         body: formData,
       });
@@ -162,10 +168,10 @@ const Home = () => {
       if (response?.ok) {
         const data = await response.text();
         toast.success('Excel uploaded and data imported successfully!');
-        fetchBooks(); // Refresh book list after import
-        setFile(null); // Reset file state
+        fetchBooks();
+        setFile(null);
         if (fileInputRef.current) {
-          fileInputRef.current.value = ''; // Reset file input
+          fileInputRef.current.value = '';
         }
       } else {
         const errorText = await response?.text() || 'Unknown error';
@@ -176,6 +182,39 @@ const Home = () => {
       toast.error('Network error during upload');
     }
   };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const response = await apiCall(`/api/books/generate-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json', // Explicitly set
+        },
+        body: JSON.stringify({ books }),
+      });
+      if (response?.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        setPdfUrl(url);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'books.pdf';
+        link.click();
+        toast.success('PDF downloaded successfully!');
+      } else {
+        const errorText = await response?.text() || 'Failed to generate PDF';
+        toast.error(errorText);
+      }
+    } catch (err) {
+      toast.error('Network error');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) window.URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
 
   useEffect(() => {
     fetchBooks();
@@ -230,7 +269,7 @@ const Home = () => {
                   type="file"
                   accept=".xlsx, .xls"
                   onChange={handleFileChange}
-                  ref={fileInputRef} // Add ref here
+                  ref={fileInputRef}
                 />
                 <Button onClick={handleUploadExcel} className="mt-2 w-full">
                   Upload Excel
@@ -241,7 +280,14 @@ const Home = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Your Books ({books.length})</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Your Books ({books.length})</CardTitle>
+                {books.length > 0 && (
+                  <Button onClick={handleDownloadPdf} variant="outline">
+                    Download PDF
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -251,41 +297,49 @@ const Home = () => {
                   No books yet. Add your first book!
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Author</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {books.map((book) => (
-                      <TableRow key={book.id}>
-                        <TableCell className="font-medium">{book.name}</TableCell>
-                        <TableCell>{book.author}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(book)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDelete(book.id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Author</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {books.map((book) => (
+                        <TableRow key={book.id}>
+                          <TableCell className="font-medium">{book.name}</TableCell>
+                          <TableCell>{book.author}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEdit(book)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDelete(book.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {pdfUrl && (
+                    <div className="mt-4">
+                      <h3 className="text-lg font-semibold">PDF Preview</h3>
+                      <embed src={pdfUrl} type="application/pdf" width="100%" height="400px" />
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

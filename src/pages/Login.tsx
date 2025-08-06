@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // Add useLocation
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // Add to get state.from
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,9 @@ const Login = () => {
       if (response.ok) {
         const data = await response.json();
         login(data.accessToken, data.refreshToken);
-        navigate('/home');
+        // Redirect to intended route or /home, replacing /login in history
+        const from = location.state?.from?.pathname || '/home';
+        navigate(from, { replace: true });
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Login failed');
