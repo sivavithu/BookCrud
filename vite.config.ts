@@ -10,12 +10,12 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       '/auth': {
-        target: 'http://localhost:5000',//gateway
+        target: 'https://localhost:5000',//gateway
         changeOrigin: true,
         secure: false,
       },
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://localhost:5000',
         changeOrigin: true,
         secure: false,
       },

@@ -183,38 +183,56 @@ const Home = () => {
     }
   };
 
-  const handleDownloadPdf = async () => {
-    try {
-      const response = await apiCall(`/api/books/generate-pdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json', // Explicitly set
-        },
-        body: JSON.stringify({ books }),
+// New function for generating PDF (with optional download)
+const generatePdf = async (shouldDownload: boolean = false) => {
+  try {
+    const response = await apiCall(`/api/books/generate-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ books }),
+    });
+    if (response?.ok) {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      setPdfUrl((prevUrl) => {
+        if (prevUrl) window.URL.revokeObjectURL(prevUrl); // Revoke previous immediately
+        return url;
       });
-      if (response?.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        setPdfUrl(url);
+      if (shouldDownload) {
         const link = document.createElement('a');
         link.href = url;
         link.download = 'books.pdf';
+        document.body.appendChild(link);
         link.click();
-        toast.success('PDF downloaded successfully!');
-      } else {
-        const errorText = await response?.text() || 'Failed to generate PDF';
-        toast.error(errorText);
+        document.body.removeChild(link);
       }
-    } catch (err) {
-      toast.error('Network error');
+      toast.success(shouldDownload ? 'PDF downloaded successfully!' : 'PDF preview updated!');
+    } else {
+      const errorText = await response?.text() || 'Failed to generate PDF';
+      toast.error(errorText);
     }
-  };
+  } catch (err) {
+    toast.error('Network error');
+  }
+};
 
-  useEffect(() => {
-    return () => {
-      if (pdfUrl) window.URL.revokeObjectURL(pdfUrl);
-    };
-  }, [pdfUrl]);
+const handleDownloadPdf = () => {
+  generatePdf(true);
+};
+
+// useEffect to update preview only (no download) when books change
+useEffect(() => {
+  if (books.length > 0) {
+    generatePdf(false);
+  } else {
+    setPdfUrl((prevUrl) => {
+      if (prevUrl) window.URL.revokeObjectURL(prevUrl);
+      return null;
+    });
+  }
+}, [books]);
 
   useEffect(() => {
     fetchBooks();
