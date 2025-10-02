@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import Layout from '../components/Layout';
 
 interface Book {
   id: string;
@@ -22,15 +23,13 @@ interface Book {
   author: string;
 }
 
- // Vite frontend with proxy to gateway
-
 const Home = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [formData, setFormData] = useState({ name: '', author: '' });
-  const { user, logout, getAccessToken, refreshAccessToken } = useAuth();
+  const { getAccessToken, refreshAccessToken, logout } = useAuth();
   const [deleteBookId, setDeleteBookId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +40,7 @@ const Home = () => {
     const headers = {
       Authorization: `Bearer ${token}`,
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...options.headers, // Allow overriding headers if needed
+      ...options.headers,
     };
 
     let response = await fetch(url, {
@@ -183,74 +182,62 @@ const Home = () => {
     }
   };
 
-// New function for generating PDF (with optional download)
-const generatePdf = async (shouldDownload: boolean = false) => {
-  try {
-    const response = await apiCall(`/api/books/generate-pdf`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ books }),
-    });
-    if (response?.ok) {
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      setPdfUrl((prevUrl) => {
-        if (prevUrl) window.URL.revokeObjectURL(prevUrl); // Revoke previous immediately
-        return url;
+  const generatePdf = async (shouldDownload: boolean = false) => {
+    try {
+      const response = await apiCall(`/api/books/generate-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ books }),
       });
-      if (shouldDownload) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'books.pdf';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      if (response?.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        setPdfUrl((prevUrl) => {
+          if (prevUrl) window.URL.revokeObjectURL(prevUrl);
+          return url;
+        });
+        if (shouldDownload) {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'books.pdf';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        toast.success(shouldDownload ? 'PDF downloaded successfully!' : 'PDF preview updated!');
+      } else {
+        const errorText = await response?.text() || 'Failed to generate PDF';
+        toast.error(errorText);
       }
-      toast.success(shouldDownload ? 'PDF downloaded successfully!' : 'PDF preview updated!');
-    } else {
-      const errorText = await response?.text() || 'Failed to generate PDF';
-      toast.error(errorText);
+    } catch (err) {
+      toast.error('Network error');
     }
-  } catch (err) {
-    toast.error('Network error');
-  }
-};
+  };
 
-const handleDownloadPdf = () => {
-  generatePdf(true);
-};
+  const handleDownloadPdf = () => {
+    generatePdf(true);
+  };
 
-// useEffect to update preview only (no download) when books change
-useEffect(() => {
-  if (books.length > 0) {
-    generatePdf(false);
-  } else {
-    setPdfUrl((prevUrl) => {
-      if (prevUrl) window.URL.revokeObjectURL(prevUrl);
-      return null;
-    });
-  }
-}, [books]);
+  useEffect(() => {
+    if (books.length > 0) {
+      generatePdf(false);
+    } else {
+      setPdfUrl((prevUrl) => {
+        if (prevUrl) window.URL.revokeObjectURL(prevUrl);
+        return null;
+      });
+    }
+  }, [books]);
 
   useEffect(() => {
     fetchBooks();
   }, []);
 
   return (
-    <div className="min-h-screen bg-warm-gradient p-4">
+    <Layout>
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-primary">📚 My Library</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.username}!</p>
-          </div>
-          <Button onClick={logout} variant="outline">
-            Sign Out
-          </Button>
-        </div>
-
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -378,7 +365,7 @@ useEffect(() => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Layout>
   );
 };
 

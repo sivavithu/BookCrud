@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const Register = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,13 +21,18 @@ const Register = () => {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch('/auth/register', {
+      const response = await fetch(`/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
@@ -39,6 +44,7 @@ const Register = () => {
         setError(errorData.message || 'Registration failed');
       }
     } catch (err) {
+      console.error('Registration error:', err);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -56,10 +62,10 @@ const Register = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full"
               />
@@ -67,10 +73,11 @@ const Register = () => {
             <div>
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder="Password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
                 className="w-full"
               />
             </div>
@@ -84,7 +91,11 @@ const Register = () => {
                 className="w-full"
               />
             </div>
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && (
+              <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+                {error}
+              </div>
+            )}
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>

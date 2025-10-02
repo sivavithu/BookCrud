@@ -5,11 +5,14 @@ import { jwtDecode } from 'jwt-decode';
 interface User {
   userId: string;
   username: string;
+  email?: string;
+  role?: string;
+  profilePicture?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (accessToken: string, refreshToken: string) => void;
+  login: (accessToken: string, refreshToken: string, userData?: Partial<User>) => void;
   logout: () => void;
   isAuthenticated: boolean;
   getAccessToken: () => string | null;
@@ -35,30 +38,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
+    const storedUser = localStorage.getItem('user');
+    
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
-        setUser({
-          userId: decoded.sub || decoded.userId,
-          username: decoded.username || decoded.name
-        });
+        
+        // Try to get user from localStorage first, fallback to JWT
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          setUser({
+            userId: decoded.sub || decoded.userId || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+            username: decoded.username || decoded.name || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
+            email: decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
+            role: decoded.role || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'],
+          });
+        }
       } catch (error) {
+        console.error('Failed to decode token:', error);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
       }
     }
   }, []);
 
-  const login = (accessToken: string, refreshToken: string) => {
+  const login = (accessToken: string, refreshToken: string, userData?: Partial<User>) => {
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     
     try {
       const decoded: any = jwtDecode(accessToken);
-      setUser({
-        userId: decoded.sub || decoded.userId,
-        username: decoded.username || decoded.name
-      });
+      
+      // Merge userData with decoded token info
+      const userInfo: User = {
+        userId: userData?.userId || decoded.sub || decoded.userId || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+        username: userData?.username || decoded.username || decoded.name || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
+        email: userData?.email || decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
+        role: userData?.role || decoded.role || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'],
+        profilePicture: userData?.profilePicture,
+      };
+
+      setUser(userInfo);
+      localStorage.setItem('user', JSON.stringify(userInfo));
     } catch (error) {
       console.error('Failed to decode token:', error);
     }
@@ -67,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
@@ -90,13 +114,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok) {
         const data = await response.json();
-        login(data.accessToken, data.refreshToken);
+        login(data.accessToken, data.refreshToken, {
+          userId: data.userId,
+          username: data.username,
+          email: data.email,
+          role: data.role,
+          profilePicture: data.profilePicture,
+        });
         return true;
       } else {
         logout();
         return false;
       }
     } catch (error) {
+      console.error('Token refresh failed:', error);
       logout();
       return false;
     }
