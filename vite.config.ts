@@ -10,12 +10,12 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       '/auth': {
-        target: 'https://localhost:5000',//gateway
+        target: 'https://api-gateway.icywater-e2b57c27.southeastasia.azurecontainerapps.io',//gateway
         changeOrigin: true,
         secure: false,
       },
       '/api': {
-        target: 'https://localhost:5000',
+        target: 'https://api-gateway.icywater-e2b57c27.southeastasia.azurecontainerapps.io',
         changeOrigin: true,
         secure: false,
       },
