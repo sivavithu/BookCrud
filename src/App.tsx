@@ -14,11 +14,36 @@ import NotFound from "./pages/NotFound";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import ForgotPassword from './pages/ForgotPassword';
 
+// Validate required environment variables
+const validateEnv = () => {
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const apiUrl = import.meta.env.VITE_API_URL;
+  
+  if (!googleClientId || !apiUrl) {
+    const errors = [];
+    if (!googleClientId) errors.push('VITE_GOOGLE_CLIENT_ID');
+    if (!apiUrl) errors.push('VITE_API_URL');
+    
+    console.error(
+      '❌ Missing required environment variables:\n' +
+      errors.map(e => `  • ${e}`).join('\n') +
+      '\n\n📝 Setup instructions:\n' +
+      '  1. Copy .env.example to .env: cp .env.example .env\n' +
+      '  2. Edit .env and fill in your configuration values\n' +
+      '  3. Restart the development server\n\n' +
+      'For more information, see README.md'
+    );
+  }
+  
+  return { googleClientId: googleClientId || '', apiUrl: apiUrl || '' };
+};
+
+const env = validateEnv();
 
 const queryClient = new QueryClient();
 
 const App = () => (
-  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+  <GoogleOAuthProvider clientId={env.googleClientId}>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
