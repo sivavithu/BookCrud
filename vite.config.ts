@@ -5,14 +5,18 @@ import { componentTagger } from "lovable-tagger";
 
 
 export default defineConfig(({ mode }) => {
-  // Load environment variables
-  const apiUrl = process.env.VITE_API_URL || 'https://localhost:5000';
+  // Load environment variables - fall back to localhost only in development
+  const apiUrl = process.env.VITE_API_URL || (mode === 'development' ? 'http://localhost:5000' : '');
+  
+  if (!apiUrl) {
+    console.warn('⚠️  VITE_API_URL is not set. API proxy will not be configured.');
+  }
   
   return {
     server: {
       host: "::",
       port: 8080,
-      proxy: {
+      proxy: apiUrl ? {
         '/auth': {
           target: apiUrl,
           changeOrigin: true,
@@ -23,7 +27,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-      },
+      } : undefined,
     },
     plugins: [
       react(),

@@ -19,6 +19,8 @@ A modern book management application built with React, TypeScript, and Vite. Fea
 
 ## Environment Setup
 
+⚠️ **IMPORTANT**: You **must** set up your environment variables before running the application. The app will not start without them.
+
 1. Copy the example environment file:
    ```bash
    cp .env.example .env
@@ -35,14 +37,16 @@ A modern book management application built with React, TypeScript, and Vite. Fea
      - Add authorized redirect URIs
 
    - **VITE_API_URL**: Your backend API URL
-     - Development: `https://localhost:5000` (default)
-     - Production: Update to your production API URL
+     - Development example: `http://localhost:5000`
+     - Production: Use your actual production API URL (e.g., `https://api.yourdomain.com`)
 
    Example `.env` file:
    ```env
    VITE_GOOGLE_CLIENT_ID=123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com
-   VITE_API_URL=https://localhost:5000
+   VITE_API_URL=http://localhost:5000
    ```
+
+   > **Note**: The application validates that these variables are set on startup and will display a helpful error message if any are missing.
 
 ## Installation
 
@@ -80,10 +84,18 @@ A modern book management application built with React, TypeScript, and Vite. Fea
 
 ## Security
 
-- Never commit your `.env` file to version control
+### Environment Variables
+- ✅ **Never commit your `.env` file to version control**
+- ✅ The `.env` file is in `.gitignore` to prevent accidental commits
+- ✅ Use different credentials for development and production environments
+- ✅ The `.env.example` file contains empty placeholders to avoid security scanner false positives
+- ✅ The application validates required environment variables on startup
+
+### Best Practices
 - Keep your Google OAuth Client ID and other secrets secure
-- The `.env` file is already in `.gitignore` to prevent accidental commits
-- Use different credentials for development and production environments
+- Rotate credentials regularly, especially if exposed
+- Use environment-specific configurations (dev, staging, production)
+- Review the `.gitignore` file to ensure sensitive files are excluded
 
 ## Project Structure
 
